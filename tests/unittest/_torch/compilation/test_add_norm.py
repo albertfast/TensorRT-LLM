@@ -18,6 +18,7 @@ def rms_norm(x: torch.Tensor, weight: torch.Tensor = None, eps: float = 1e-6):
 @pytest.mark.parametrize("enable_inductor", [False, True])
 def test_add_norm_fusion(dtype, enable_inductor):
     backend = Backend(enable_inductor)
+    add_norm_fusion_pass_id = 1
     SEQ_LEN = 16
     HIDDEN_SIZE = 1024
     eps = 1e-6
@@ -38,9 +39,7 @@ def test_add_norm_fusion(dtype, enable_inductor):
     final_output, inter_output = func(x.clone(), residual.clone(), norm_weight,
                                       eps)
 
-    add_norm_fusion_pass_id = 1
-    assert backend.match_count[
-        add_norm_fusion_pass_id] == 1, "Pattern Matching Failed"
+    assert backend.match_count[add_norm_fusion_pass_id] == 1
 
     torch_inter_output = x + residual
     torch_final_output = rms_norm(torch_inter_output, norm_weight, eps)

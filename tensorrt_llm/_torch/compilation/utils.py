@@ -64,7 +64,7 @@ def inplace_info():
         },
         torch.ops.trtllm.flashinfer_fused_add_rmsnorm_quant.default: {
             1: "out",
-            2: "residual"
+            2: "residual",
         },
         torch.ops.trtllm.attn_custom_op_inplace.default: {
             1: "output",

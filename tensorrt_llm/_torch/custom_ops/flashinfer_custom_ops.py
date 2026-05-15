@@ -5,8 +5,7 @@ from ..flashinfer_utils import IS_FLASHINFER_AVAILABLE, get_env_enable_pdl
 if IS_FLASHINFER_AVAILABLE:
     from flashinfer.activation import gelu_tanh_and_mul, silu_and_mul
     from flashinfer.norm import (fused_add_rmsnorm, fused_add_rmsnorm_quant,
-                                 gemma_fused_add_rmsnorm, gemma_rmsnorm,
-                                 rmsnorm)
+                                 gemma_fused_add_rmsnorm, gemma_rmsnorm, rmsnorm)
     from flashinfer.rope import apply_rope_with_cos_sin_cache_inplace
 
     # Warp this into custom op since flashinfer didn't warp it properly and we want to avoid graph break between mlp layer for user buffer optimization
