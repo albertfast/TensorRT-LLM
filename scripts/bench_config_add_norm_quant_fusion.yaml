@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+torch_compile_config:
+  enable_fullgraph: true
+  enable_inductor: false
+cuda_graph_config:
+  enable_padding: true
+print_iter_log: true
