@@ -23,10 +23,17 @@
 # model weights, and trtllm-bench — not run here; measure offline or on a
 # self-hosted benchmark job.
 #
-# CUDA unit tests require FlashInfer + GPU and do not run on ubuntu-latest.
-# To enable pytest on your fork, create a repository Actions variable named
-# TRTLLM_CUDA_RUNNER whose value is your self-hosted runner label (for example
-# the label registered for a machine with `nvidia-smi` and TensorRT-LLM dev deps).
+# CUDA unit tests require FlashInfer + GPU + a working TensorRT-LLM install.
+# GitHub-hosted ubuntu-latest has no NVIDIA GPU and cannot import CUDA bindings,
+# so fusion pytest does not run there.
+#
+# To run pytest in Actions on your fork:
+#   1. Register a self-hosted runner with an NVIDIA GPU (Settings → Actions → Runners).
+#   2. Add repo variable TRTLLM_CUDA_RUNNER = that runner's label(s), e.g. self-hosted-gpu
+#   3. Install CUDA deps on the runner (same as local dev / NGC TensorRT-LLM container).
+#
+# When TRTLLM_CUDA_RUNNER is unset, job "GPU fusion pytest — how to enable" prints setup
+# steps in the workflow run Summary.
 
 name: Add Norm Quant Fusion Checks
 
@@ -77,8 +84,45 @@ jobs:
             tests/unittest/_torch/compilation/test_add_norm_quant.py \
             scripts/parse_fusion_bench_results.py
 
+  gpu-pytest-setup-guide:
+    name: GPU fusion pytest — how to enable
+    needs: syntax-check
+    runs-on: ubuntu-latest
+    if: ${{ vars.TRTLLM_CUDA_RUNNER == '' }}
+    steps:
+      - name: Explain skipped CUDA pytest (fork / no GPU runner)
+        run: |
+          cat >> "${GITHUB_STEP_SUMMARY}" << 'EOSUMMARY'
+          ## Why fusion pytest did not run
+
+          The jobs `test_add_norm_quant.py` and `test_add_norm.py` require **CUDA**, **FlashInfer**, and a full **TensorRT-LLM** Python environment. GitHub **ubuntu-latest** runners have **no NVIDIA GPU**, so pytest cannot execute here.
+
+          ### Run fusion tests on GitHub Actions (your fork)
+
+          1. Add a **self-hosted runner** on a machine with NVIDIA drivers (`nvidia-smi` works).
+          2. In the repo: **Settings → Secrets and variables → Actions → Variables**
+          3. Create **`TRTLLM_CUDA_RUNNER`** with the **runs-on** label string for that runner  
+             (must match `runs-on:` in YAML, e.g. `self-hosted` or `self-hosted, gpu`).
+          4. On the runner host, install dependencies (recommended: same flow as  
+             [TensorRT-LLM install docs](https://github.com/NVIDIA/TensorRT-LLM/tree/main/docs/source/installation)), then re-run this workflow.
+
+          ### Run fusion tests locally (quick check)
+
+          From a GPU machine or NGC TensorRT-LLM container, in the repo root:
+
+          ```bash
+          pytest tests/unittest/_torch/compilation/test_add_norm_quant.py \
+                 tests/unittest/_torch/compilation/test_add_norm.py -v --tb=short
+          ```
+
+          After `pip install -e ".[devel]"` (or your container’s equivalent).
+
+          ---
+          *Workflow file:* `.github/workflows/add-norm-quant-fusion-tests.yml`
+          EOSUMMARY
+
   cuda-unit-tests:
-    name: Pytest (GPU, optional)
+    name: Pytest fusion (GPU self-hosted)
     needs: syntax-check
     if: ${{ vars.TRTLLM_CUDA_RUNNER != '' }}
     runs-on: ${{ vars.TRTLLM_CUDA_RUNNER }}
