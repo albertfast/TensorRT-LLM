@@ -15,6 +15,14 @@
 
 # Fusion-related Python compile checks (always runs on GitHub-hosted runners).
 #
+# Forks: enable workflows under Settings → Actions → General ("Allow all actions"
+# or equivalent). Otherwise runs stay at zero despite pushes.
+#
+# Scope: this workflow covers Level A (compileall). Optional GPU pytest is Level B
+# via TRTLLM_CUDA_RUNNER. End-to-end req/sec / P50 tables (Level C) need a GPU,
+# model weights, and trtllm-bench — not run here; measure offline or on a
+# self-hosted benchmark job.
+#
 # CUDA unit tests require FlashInfer + GPU and do not run on ubuntu-latest.
 # To enable pytest on your fork, create a repository Actions variable named
 # TRTLLM_CUDA_RUNNER whose value is your self-hosted runner label (for example
@@ -24,6 +32,15 @@ name: Add Norm Quant Fusion Checks
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - test-optimization
+    paths:
+      - 'tensorrt_llm/_torch/compilation/**'
+      - 'tensorrt_llm/_torch/custom_ops/flashinfer_custom_ops.py'
+      - 'tests/unittest/_torch/compilation/test_add_norm*.py'
+      - '.github/workflows/add-norm-quant-fusion-tests.yml'
   pull_request:
     paths:
       - 'tensorrt_llm/_torch/compilation/**'
