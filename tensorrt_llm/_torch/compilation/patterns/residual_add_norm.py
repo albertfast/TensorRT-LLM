@@ -136,18 +136,21 @@ def register_add_norm(custom_pass: PatternMatcherPass):
         return at[1], at[2]
 
     def extra_check(match: Match):
-        # Check the original residual and hidden has no other users since we will inplace update them
-        residual_node = match.ctx.pattern_to_node[add_Tensor]
-        if not isinstance(residual_node, torch.fx.graph.Node):
+        # In-place fused kernel: both add operands must have no uses after the add.
+        # Avoid relying on dict insertion order of .users (fragile across PyTorch versions).
+        add_node = match.ctx.pattern_to_node[add_Tensor]
+        if not isinstance(add_node, torch.fx.graph.Node):
             return False
 
-        # torch uses dict here to guarantee the order of the uses
-        if list(residual_node.args[0].users.keys()
-                )[-1] != residual_node or list(
-                    residual_node.args[1].users.keys())[-1] != residual_node:
+        input_arg = add_node.args[0]
+        residual_arg = add_node.args[1]
+        if not isinstance(input_arg,
+                           torch.fx.graph.Node) or not isinstance(
+                               residual_arg, torch.fx.graph.Node):
             return False
 
-        return True
+        return (_has_no_later_users(input_arg, add_node)
+                and _has_no_later_users(residual_arg, add_node))
 
     register_replacement(
         empty_pattern,

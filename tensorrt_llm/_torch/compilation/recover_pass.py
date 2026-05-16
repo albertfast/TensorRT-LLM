@@ -1,5 +1,3 @@
-from operator import add
-
 import torch
 from torch.fx import GraphModule
 
@@ -21,7 +19,8 @@ def recover_pass(gm: GraphModule):
             weight = get_arg(node, 2, 'weight')
             eps = get_arg(node, 3, 'eps')
             with graph.inserting_before(node):
-                new_add = graph.call_function(add, (input, residual))
+                new_add = graph.call_function(torch.ops.aten.add.Tensor,
+                                              (input, residual))
                 new_norm = graph.call_function(
                     torch.ops.trtllm.flashinfer_rmsnorm.default,
                     (new_add, weight, eps))

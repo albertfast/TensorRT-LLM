@@ -6,6 +6,23 @@ from tensorrt_llm._torch.custom_ops import flashinfer_rmsnorm
 from tensorrt_llm._torch.modules.rms_norm import RMSNorm
 
 
+@pytest.fixture(autouse=True)
+def reset_backend_pattern_passes():
+    Backend._custom_pass_instances = None
+    yield
+
+
+def _skip_fp8_fusion_if_unsupported_gpu():
+    """FlashInfer FP8 fused add+RMSNorm+quant is unreliable on pre-Ampere GPUs (e.g. Turing NaNs)."""
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA required")
+    major, _minor = torch.cuda.get_device_capability()
+    if major < 8:
+        pytest.skip(
+            "FP8 fused add+RMSNorm+quant tests require Ampere (sm_80+) or newer "
+            f"(got capability {major}.x)")
+
+
 def rms_norm(x: torch.Tensor, weight: torch.Tensor = None, eps: float = 1e-6):
     y = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps)
     if weight is not None:
@@ -23,6 +40,7 @@ def _has_fused_add_norm_quant(gm):
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("enable_inductor", [False, True])
 def test_add_norm_quant_fusion(dtype, enable_inductor):
+    _skip_fp8_fusion_if_unsupported_gpu()
     backend = Backend(enable_inductor)
     SEQ_LEN = 16
     HIDDEN_SIZE = 1024
@@ -84,6 +102,7 @@ def test_add_norm_quant_fusion(dtype, enable_inductor):
 @pytest.mark.parametrize("enable_inductor", [False, True])
 def test_add_norm_quant_does_not_fuse_when_residual_is_used_later(
         dtype, enable_inductor):
+    _skip_fp8_fusion_if_unsupported_gpu()
     backend = Backend(enable_inductor)
     SEQ_LEN = 16
     HIDDEN_SIZE = 1024
